@@ -6,29 +6,50 @@
 #include "mongoose.h"
 #include "WavFile.hpp"
 
+// ------------- Globals ------------------------------
+
 static const char *s_http_port = "8000";
 static struct mg_serve_http_opts s_http_server_opts;
 
-// ------------- Globals
-
-static int window_width = 20;
+static double window_width;
+static double window_offset;
+static int window_function = 0; // None, hamm, hann
 static WavFile *wf;
 
-// ------------- Globals end
+// ------------- Globals end --------------------------
 
-static void handle_window_width_change(struct mg_connection *nc,
-                                       struct http_message *hm) {
+static void handle_dft(struct mg_connection *nc, struct http_message *hm) {
   char n1[100];
 
   /* Get form variables */
-  mg_get_http_var(&hm->body, "n1", n1, sizeof(n1));
+  mg_get_http_var(&hm->body, "windowWidth", n1, sizeof(n1));
+  window_width = strtod(n1, NULL);
+  mg_get_http_var(&hm->body, "windowOffset", n1, sizeof(n1));
+  window_offset = strtod(n1, NULL);
+  mg_get_http_var(&hm->body, "windowFunction", n1, sizeof(n1));
+  if (n1[0] == 'N')
+    window_function = 0;
+  else
+    window_function = (n1[2] == 'm') ? 1 : 2;
 
   /* Send headers */
   mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
   /* Compute the result and send it back as a JSON object */
-  window_width = strtod(n1, NULL);
-  mg_printf_http_chunk(nc, "{ \"result\": %d }", window_width);
+  mg_printf_http_chunk(nc, "{ \"song\": [");
+
+  int start = wf->millisecondsToSample(window_offset);
+  int end = wf->millisecondsToSample(window_offset + window_width);
+  end = std::min(end, wf->numSamples() - 1);
+
+  for (int i = start; i <= end; i++) {
+    mg_printf_http_chunk(nc, "{\"time\": %lf, \"value\": %lf}",
+                         wf->sampleToMilliseconds(i), wf->data()[i]);
+    if (i != end) {
+      mg_printf_http_chunk(nc, ",");
+    }
+  }
+  mg_printf_http_chunk(nc, "] }");
   mg_send_http_chunk(nc, "", 0); /* Send empty chunk, the end of response */
 }
 
@@ -38,14 +59,18 @@ static void handle_process(struct mg_connection *nc, struct http_message *hm) {
   mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
   char c[300];
+  mg_get_http_var(&hm->body, "increment", c, sizeof(c));
+  int inc = strtod(c, NULL);
+
   mg_get_http_var(&hm->body, "filename", c, sizeof(c));
   strcpy(c, "/Users/karadza3a/Downloads/primer.wav");
   wf = new WavFile(c);
 
   mg_printf_http_chunk(nc, "{ \"song\": [");
-  for (int i = 0; i < wf->numSamples(); i++) {
-    mg_printf_http_chunk(nc, "{\"time\": %d, \"value\": %f}", i, wf->data()[i]);
-    if (i != wf->numSamples() - 1) {
+  for (int i = 0; i < wf->numSamples(); i += inc) {
+    mg_printf_http_chunk(nc, "{\"time\": %lf, \"value\": %lf}",
+                         wf->sampleToMilliseconds(i), wf->data()[i]);
+    if (i + inc < wf->numSamples()) {
       mg_printf_http_chunk(nc, ",");
     }
   }
@@ -58,8 +83,8 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
 
   switch (ev) {
   case MG_EV_HTTP_REQUEST:
-    if (mg_vcmp(&hm->uri, "/change/window_width") == 0) {
-      handle_window_width_change(nc, hm); /* Handle RESTful call */
+    if (mg_vcmp(&hm->uri, "/dft") == 0) {
+      handle_dft(nc, hm); /* Handle RESTful call */
     } else if (mg_vcmp(&hm->uri, "/process") == 0) {
       handle_process(nc, hm); /* Handle RESTful call */
     } else {

@@ -25,7 +25,7 @@ struct wavheader {
   int Subchunk1Size;
   short AudioFormat; // 1 for PCM format
   short NumChannels; // channels
-  int SampleRate;    // sampling frequency
+  int SampleRate;    // sampling frequency - samples per second
   int ByteRate;
   short BlockAlign;
   short BitsPerSample;
@@ -43,7 +43,15 @@ class WavFile {
 
 public:
   int numSamples() { return header.Subchunk2Size / 2; }
+
   double *data() { return floatingData; }
+
+  double sampleToMilliseconds(int sample) {
+    return (sample / (header.SampleRate / 1000.0));
+  }
+  double millisecondsToSample(double milliseconds) {
+    return milliseconds * (header.SampleRate / 1000.0);
+  }
 
   WavFile(char *p) : path(p) {
     FILE *f = fopen(path, "rb");

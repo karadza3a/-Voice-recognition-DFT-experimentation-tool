@@ -28,18 +28,38 @@
 <script language="javascript" type="text/javascript">
   jQuery(function() {
 
-    $(document).on('click', '#done', function() {
+    $(document).on('click', '#process', function() {
       $.ajax({
         url: '/process',
         method: 'POST',
         dataType: 'json',
         data: { 
-          windowWidth: $('#windowWidth').val(),
+          increment: $('#increment').val(),
           fajl: $('#fajl').val()
         },
         success: function(json) {
-          console.log(json.song);
-          generateChart(json.song);
+          //console.log("chart disabled");
+          generateSongChart(json.song);
+        },
+        error: function(json) {
+          console.log("error");
+        },
+      });
+    });
+
+    $(document).on('click', '#dft', function() {
+      $.ajax({
+        url: '/dft',
+        method: 'POST',
+        dataType: 'json',
+        data: { 
+          windowWidth: $('#windowWidth').val(),
+          windowFunction: $('#windowFunction').val(),
+          windowOffset: $('#windowOffset').val(),
+        },
+        success: function(json) {
+          //console.log("chart disabled");
+          generateDftChart(json.song);
         },
         error: function(json) {
           console.log("error");
@@ -55,8 +75,10 @@
 <script src="amcharts/serial.js" type="text/javascript"></script>
 
 <script>
-  function generateChart (chartData) {
-    var chart = AmCharts.makeChart("chartdiv", {
+  var schart;
+  var dchart;
+  function generateSongChart (chartData) {
+    schart = AmCharts.makeChart("songchartdiv", {
         type: "serial",
         dataProvider: chartData,
         categoryField: "time",
@@ -96,26 +118,74 @@
 
         mouseWheelZoomEnabled:true
     });
-    chart.addListener("dataUpdated", zoomChart);
+    schart.zoomToIndexes(0, chartData.length - 1);
   }
-  // this method is called when chart is first inited as we listen for "dataUpdated" event
-  function zoomChart() {
-      // different zoom methods can be used - zoomToIndexes, zoomToDates, zoomToCategoryValues
-      chart.zoomToIndexes(chartData.length - 40, chartData.length - 1);
-  }
+  function generateDftChart (chartData) {
+    dchart = AmCharts.makeChart("dftchartdiv", {
+        type: "serial",
+        dataProvider: chartData,
+        categoryField: "time",
+        categoryAxis: {
+            parseDates: false,
+            gridAlpha: 0.15,
+            minorGridEnabled: true,
+            axisColor: "#DADADA",
+        },
+        valueAxes: [{
+            axisAlpha: 0.2,
+            id: "v1"
+        }],
+        graphs: [{
+            title: "red line",
+            id: "g1",
+            valueAxis: "v1",
+            valueField: "value",
+            bullet: "none",
+            bulletBorderColor: "#FFFFFF",
+            bulletBorderAlpha: 1,
+            lineThickness: 2,
+            lineColor: "#b5030d",
+            negativeLineColor: "#0352b5",
+            balloonText: "[[category]]<br><b><span style='font-size:14px;'>value: [[value]]</span></b>"
+        }],
+        chartCursor: {
+            fullWidth:true,
+            cursorAlpha:0.1
+        },
+        chartScrollbar: {
+            scrollbarHeight: 40,
+            color: "#FFFFFF",
+            autoGridCount: true,
+            graph: "g1"
+        },
 
+        mouseWheelZoomEnabled:true
+    });
+    dchart.zoomToIndexes(0, chartData.length - 1);
+  }
+  
   // changes cursor mode from pan to select
-  function setPanSelect() {
-      var chartCursor = chart.chartCursor;
+  function setSongPanSelect() {
+      var chartCursor = schart.chartCursor;
 
-      if (document.getElementById("rb1").checked) {
+      if (document.getElementById("srb1").checked) {
           chartCursor.pan = false;
           chartCursor.zoomable = true;
-
       } else {
           chartCursor.pan = true;
       }
-      chart.validateNow();
+      schart.validateNow();
+  }
+  function setDftPanSelect() {
+      var chartCursor = dchart.chartCursor;
+
+      if (document.getElementById("drb1").checked) {
+          chartCursor.pan = false;
+          chartCursor.zoomable = true;
+      } else {
+          chartCursor.pan = true;
+      }
+      dchart.validateNow();
   }
 </script>
 
@@ -127,26 +197,43 @@
     <h1>RESTful API demo.</h1>
 
     <p>
-      This page demonstrates how Mongoose could 
+      This page dem  on   strates how Mongoose could 
       Browser sends two numbers to <tt>/api/v1/sum</tt> URI.
     </p>
 
     <div>
-      <label>Filename:</label> <input type="file" id="fajl" value="primer.wav" />
+      <label>Filename:</label> <input type="file" id="fajl" />
     </div><div>
-      <label>Window width:</label> <input type="text" id="windowWidth" />
+      <label>Increment:</label> <input type="number" id="increment" value=500 />
     </div><div>
-      <label>Number 2:</label> <input type="text" id="n2" />
-    </div><div>
-     <label>Result:</label> <span id="result">&nbsp;</span>
-    </div><div>
-      <button type="button" id="done">Process</button>
+      <button type="button" id="process">Process</button>
     </div>
 
-    <div id="chartdiv" style="width: 100%; height: 400px;"></div>
+    <div id="songchartdiv" style="width: 100%; height: 400px;"></div>
     <div style="margin-left:35px;">
-        <input type="radio" checked="true" name="group" id="rb1" onclick="setPanSelect()">Select
-        <input type="radio" name="group" id="rb2" onclick="setPanSelect()">Pan
+        <input type="radio" checked="true" name="group" id="srb1" onclick="setSongPanSelect()">Select
+        <input type="radio" name="group" id="srb2" onclick="setSongPanSelect()">Pan
+    </div>
+
+    <div>
+      <label>Window width:</label> <input type="text" id="windowWidth" value="20" /> ms
+    </div><div>
+      <label>Window offset:</label> <input type="text" id="windowOffset" value="500" /> ms
+    </div><div>
+      <label>Window function:</label>
+      <select id="windowFunction">
+        <option>None</option>
+        <option>Hamming</option>
+        <option>Hanning</option>
+      </select>
+    </div><div>
+      <button type="button" id="dft">DFT it!</button>
+    </div>
+
+    <div id="dftchartdiv" style="width: 100%; height: 400px;"></div>
+    <div style="margin-left:35px;">
+        <input type="radio" checked="true" name="group" id="drb1" onclick="setDftPanSelect()">Select
+        <input type="radio" name="group" id="drb2" onclick="setDftPanSelect()">Pan
     </div>
 
 </body>
