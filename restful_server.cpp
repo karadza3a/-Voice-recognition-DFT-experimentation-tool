@@ -76,6 +76,9 @@ static void cropDataFromSinusoidData() {
   int start = window_offset;
   int end = std::min((int)(window_offset + window_width), sinusoidDataLength);
 
+  if (start > end)
+    start = 0;
+
   int n = end - start;
 
   window_length = n;
@@ -264,7 +267,7 @@ static void handle_process_sine(struct mg_connection *nc,
   mg_get_http_var(&hm->body, "sines", message, sizeof(message));
   char *sines = message;
 
-  sinusoidData = new double[n];
+  sinusoidData = new double[n + 1];
 
   for (int i = 0; i < n + 1; i++) {
     sinusoidData[i] = 0;
