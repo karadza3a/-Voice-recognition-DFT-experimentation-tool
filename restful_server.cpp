@@ -19,36 +19,43 @@ static WavFile *wf;
 static double *sinusoidData;
 static int sinusoidDataLength;
 
+static int display_increment;
 static double window_width;
 static double window_offset;
 static int window_function = 0; // None, hamm, hann
+static bool average_mode_enabled;
 
 static double *window_time;
 static double *window_data;
+static int window_data_length;
 static int window_length;
+static int window_start;
+static double *dft_out;
 
 // ------------- Globals end --------------------------
 
-static void hamming(double *data, int n) {
+static void hamming() {
+  int n = window_length;
   for (int i = 0; i < n; i++) {
     double multiplier = 0.54 - 0.46 * cos(2 * M_PI * i / (n - 1));
-    data[i] = multiplier * data[i];
+    window_data[window_start + i] = multiplier * window_data[window_start + i];
   }
 }
 
-static void hanning(double *data, int n) {
+static void hanning() {
+  int n = window_length;
   for (int i = 0; i < n; i++) {
     double multiplier = 0.5 * (1 - cos(2 * M_PI * i / (n - 1)));
-    data[i] = multiplier * data[i];
+    window_data[window_start + i] = multiplier * window_data[window_start + i];
   }
 }
 
 static void cropDataFromFile() {
   int start = wf->millisecondsToSample(window_offset);
   int end = std::min(wf->millisecondsToSample(window_offset + window_width),
-                     (double)wf->numSamples() - 1);
+                     (double)wf->numSamples());
 
-  int n = end - start + 1;
+  int n = end - start;
   window_length = n;
 
   if (window_length % 2 == 1)
@@ -56,7 +63,7 @@ static void cropDataFromFile() {
   window_time = new double[window_length];
   window_data = new double[window_length];
 
-  for (int i = start; i <= end; i++) {
+  for (int i = start; i < end; i++) {
     window_time[i - start] = wf->sampleToMilliseconds(i);
     window_data[i - start] = wf->data()[i];
   }
@@ -67,10 +74,9 @@ static void cropDataFromFile() {
 }
 static void cropDataFromSinusoidData() {
   int start = window_offset;
-  int end =
-      std::min((int)(window_offset + window_width), sinusoidDataLength - 1);
+  int end = std::min((int)(window_offset + window_width), sinusoidDataLength);
 
-  int n = end - start + 1;
+  int n = end - start;
 
   window_length = n;
   if (window_length % 2 == 1)
@@ -79,7 +85,7 @@ static void cropDataFromSinusoidData() {
   window_time = new double[window_length];
   window_data = new double[window_length];
 
-  for (int i = start; i <= end; i++) {
+  for (int i = start; i < end; i++) {
     window_time[i - start] = i;
     window_data[i - start] = sinusoidData[i];
   }
@@ -97,7 +103,7 @@ static void execDft() {
   kiss_fft_scalar rin[n + 2];
 
   for (int i = 0; i < n; ++i) {
-    rin[i] = window_data[i];
+    rin[i] = window_data[window_start + i];
   }
   kiss_fftr_state = kiss_fftr_alloc(n, 0, 0, 0);
   kiss_fftr(kiss_fftr_state, rin, sout);
@@ -105,8 +111,70 @@ static void execDft() {
   for (int i = 0; i < n / 2; ++i) {
     float re = sout[i].r / (n / 2.0);
     float im = sout[i].i / (n / 2.0);
-    window_data[i] = sqrt(re * re + im * im);
+    dft_out[i] += sqrt(re * re + im * im);
   }
+}
+
+static void get_spectre() {
+
+  if (!average_mode_enabled) {
+    if (usingFile) {
+      cropDataFromFile();
+    } else {
+      cropDataFromSinusoidData();
+    }
+    window_data_length = window_length;
+  } else { // average_mode_enabled
+    if (usingFile) {
+      window_data_length = wf->numSamples();
+      window_length = std::min(wf->millisecondsToSample(window_width),
+                               (double)wf->numSamples());
+    } else {
+      window_length = std::min((int)window_width, sinusoidDataLength);
+      window_data_length = sinusoidDataLength;
+    }
+
+    if (window_length % 2 == 1)
+      window_length++;
+
+    int n = ceil(window_data_length / (double)window_length) * window_length;
+
+    window_time = new double[n];
+    window_data = new double[n];
+
+    if (usingFile)
+      for (int i = 0; i < window_data_length; i++)
+        window_data[i] = wf->data()[i];
+    else
+      for (int i = 0; i < window_data_length; i++)
+        window_data[i] = sinusoidData[i];
+    for (int i = window_data_length; i < n; i++)
+      window_data[i] = 0;
+    window_data_length = n;
+
+    if (usingFile)
+      for (int i = 0; i < window_data_length; i++)
+        window_time[i] = wf->millisecondsToSample(i);
+    else
+      for (int i = 0; i < window_data_length; i++)
+        window_time[i] = i;
+  }
+
+  dft_out = new double[window_data_length / 2];
+  for (int i = 0; i < window_data_length / 2; i++)
+    dft_out[i] = 0;
+
+  for (window_start = 0; window_start < window_data_length;
+       window_start += window_length) {
+    if (window_function == 1)
+      hamming();
+    else if (window_function == 2)
+      hanning();
+    execDft();
+  }
+
+  for (int i = 0; i < window_data_length / 2; i++)
+    dft_out[i] /= (window_data_length / window_length);
 }
 
 static void handle_dft(struct mg_connection *nc, struct http_message *hm) {
@@ -117,7 +185,10 @@ static void handle_dft(struct mg_connection *nc, struct http_message *hm) {
   window_width = strtod(n1, NULL);
   mg_get_http_var(&hm->body, "windowOffset", n1, sizeof(n1));
   window_offset = strtod(n1, NULL);
+  mg_get_http_var(&hm->body, "average", n1, sizeof(n1));
+  average_mode_enabled = n1[0] == 'y';
   mg_get_http_var(&hm->body, "windowFunction", n1, sizeof(n1));
+
   if (n1[0] == 'N')
     window_function = 0;
   else
@@ -126,33 +197,21 @@ static void handle_dft(struct mg_connection *nc, struct http_message *hm) {
   /* Send headers */
   mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
-  if (usingFile) {
-    cropDataFromFile();
-  } else {
-    cropDataFromSinusoidData();
-  }
-
-  if (window_function == 1) {
-    hamming(window_data, window_length);
-  } else if (window_function == 2) {
-    hanning(window_data, window_length);
-  }
+  get_spectre();
 
   mg_printf_http_chunk(nc, "{ \"song\": [");
-  for (int i = 0; i < window_length; i++) {
+  for (int i = 0; i < window_data_length; i += display_increment) {
     mg_printf_http_chunk(nc, "{\"time\": %lf, \"value\": %lf}", window_time[i],
                          window_data[i]);
-    if (i != window_length - 1) {
+    if (i + display_increment < window_data_length) {
       mg_printf_http_chunk(nc, ",");
     }
   }
   mg_printf_http_chunk(nc, "], \"dft\": [");
 
-  execDft();
-
   for (int i = 0; i < window_length / 2; i++) {
     mg_printf_http_chunk(nc, "{\"frequency\": %d, \"magnitude\": %lf}", i,
-                         window_data[i]);
+                         dft_out[i]);
     if (i + 1 < window_length / 2) {
       mg_printf_http_chunk(nc, ",");
     }
@@ -167,22 +226,21 @@ static void handle_dft(struct mg_connection *nc, struct http_message *hm) {
 static void handle_process_file(struct mg_connection *nc,
                                 struct http_message *hm) {
   usingFile = true;
-  /* Send headers */
-  mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
   char c[300];
   mg_get_http_var(&hm->body, "increment", c, sizeof(c));
-  int inc = strtod(c, NULL);
+  display_increment = strtod(c, NULL);
 
   mg_get_http_var(&hm->body, "filename", c, sizeof(c));
-  strcpy(c, "/Users/karadza3a/Downloads/primer.wav");
+
   wf = new WavFile(c);
 
+  mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
   mg_printf_http_chunk(nc, "{ \"song\": [");
-  for (int i = 0; i < wf->numSamples(); i += inc) {
+  for (int i = 0; i < wf->numSamples(); i += display_increment) {
     mg_printf_http_chunk(nc, "{\"time\": %lf, \"value\": %lf}",
                          wf->sampleToMilliseconds(i), wf->data()[i]);
-    if (i + inc < wf->numSamples()) {
+    if (i + display_increment < wf->numSamples()) {
       mg_printf_http_chunk(nc, ",");
     }
   }
@@ -193,7 +251,8 @@ static void handle_process_file(struct mg_connection *nc,
 static void handle_process_sine(struct mg_connection *nc,
                                 struct http_message *hm) {
   usingFile = false;
-  /* Send headers */
+  display_increment = 1;
+
   mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
   char message[3000];
