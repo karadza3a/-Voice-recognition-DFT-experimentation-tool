@@ -78,6 +78,7 @@
         },
         success: function(json) {
           generateDftChart(json.song);
+          generateSpectre(json.dft);
         },
         error: function(json) {
           console.log("error");
@@ -95,7 +96,8 @@
 <script>
 var schart;
 var dchart;
-var aa,bb,cc;
+var specchart;
+
 function generateSongChart (chartData) {
   schart = AmCharts.makeChart("songchartdiv", {
     type: "serial",
@@ -183,29 +185,35 @@ function generateDftChart (chartData) {
   dchart.zoomToIndexes(0, chartData.length - 1);
 }
 
-// changes cursor mode from pan to select
-function setSongPanSelect() {
-  var chartCursor = schart.chartCursor;
+function generateSpectre (chartData) {
 
-  if (document.getElementById("srb1").checked) {
-    chartCursor.pan = false;
-    chartCursor.zoomable = true;
-  } else {
-    chartCursor.pan = true;
-  }
-  schart.validateNow();
-}
-function setDftPanSelect() {
-  var chartCursor = dchart.chartCursor;
+  specchart = new AmCharts.AmSerialChart();
+  specchart.dataProvider = chartData;
+  specchart.categoryField = "frequency";
 
-  if (document.getElementById("drb1").checked) {
-    chartCursor.pan = false;
-    chartCursor.zoomable = true;
-  } else {
-    chartCursor.pan = true;
-  }
-  dchart.validateNow();
+  var categoryAxis = specchart.categoryAxis;
+  categoryAxis.labelRotation = 90;
+  categoryAxis.gridPosition = "start";
+
+  var graph = new AmCharts.AmGraph();
+  graph.valueField = "magnitude";
+  graph.balloonText = "[[frequency]]: <b>[[magnitude]]</b>";
+  graph.type = "column";
+  graph.lineAlpha = 0;
+  graph.fillAlphas = 0.8;
+  specchart.addGraph(graph);
+
+  var chartCursor = new AmCharts.ChartCursor();
+  chartCursor.cursorAlpha = 0.5;
+  chartCursor.zoomable = true;
+  chartCursor.categoryBalloonEnabled = false;
+  specchart.addChartCursor(chartCursor);
+
+  specchart.creditsPosition = "top-left";
+
+  specchart.write("spectrediv");
 }
+
 function changeSource () {
   if ($("#inputType").val() == "File") {
     $("#sineSettings").hide();
@@ -254,10 +262,6 @@ function changeSource () {
     </div>
 
     <div id="songchartdiv" style="width: 100%; height: 400px;"></div>
-    <div style="margin-left:35px;">
-      <input type="radio" checked="true" name="group" id="srb1" onclick="setSongPanSelect()">Select
-      <input type="radio" name="group" id="srb2" onclick="setSongPanSelect()">Pan
-    </div>
 
     <div>
       <label>Window width:</label> 
@@ -280,10 +284,8 @@ function changeSource () {
     </div>
 
     <div id="dftchartdiv" style="width: 100%; height: 400px;"></div>
-    <div style="margin-left:35px;">
-      <input type="radio" checked="true" name="group" id="drb1" onclick="setDftPanSelect()">Select
-      <input type="radio" name="group" id="drb2" onclick="setDftPanSelect()">Pan
-    </div>
+
+    <div id="spectrediv" style="width: 100%; height: 400px;"></div>
   </div>
 </body>
 </html>

@@ -4,6 +4,7 @@
  */
 
 #include "mongoose.h"
+#include "kiss_fftr.h"
 #include "WavFile.hpp"
 #include <cmath>
 
@@ -12,10 +13,19 @@
 static const char *s_http_port = "8000";
 static struct mg_serve_http_opts s_http_server_opts;
 
+static bool usingFile;
+
+static WavFile *wf;
+static double *sinusoidData;
+static int sinusoidDataLength;
+
 static double window_width;
 static double window_offset;
 static int window_function = 0; // None, hamm, hann
-static WavFile *wf;
+
+static double *window_time;
+static double *window_data;
+static int window_length;
 
 // ------------- Globals end --------------------------
 
@@ -30,6 +40,72 @@ static void hanning(double *data, int n) {
   for (int i = 0; i < n; i++) {
     double multiplier = 0.5 * (1 - cos(2 * M_PI * i / (n - 1)));
     data[i] = multiplier * data[i];
+  }
+}
+
+static void cropDataFromFile() {
+  int start = wf->millisecondsToSample(window_offset);
+  int end = std::min(wf->millisecondsToSample(window_offset + window_width),
+                     (double)wf->numSamples() - 1);
+
+  int n = end - start + 1;
+  window_length = n;
+
+  if (window_length % 2 == 1)
+    window_length++;
+  window_time = new double[window_length];
+  window_data = new double[window_length];
+
+  for (int i = start; i <= end; i++) {
+    window_time[i - start] = wf->sampleToMilliseconds(i);
+    window_data[i - start] = wf->data()[i];
+  }
+  if (window_length != n) {
+    window_time[n] = wf->sampleToMilliseconds(n);
+    window_data[n] = 0;
+  }
+}
+static void cropDataFromSinusoidData() {
+  int start = window_offset;
+  int end =
+      std::min((int)(window_offset + window_width), sinusoidDataLength - 1);
+
+  int n = end - start + 1;
+
+  window_length = n;
+  if (window_length % 2 == 1)
+    window_length++;
+
+  window_time = new double[window_length];
+  window_data = new double[window_length];
+
+  for (int i = start; i <= end; i++) {
+    window_time[i - start] = i;
+    window_data[i - start] = sinusoidData[i];
+  }
+  if (window_length != n) {
+    window_time[n] = n;
+    window_data[n] = 0;
+  }
+}
+
+static void execDft() {
+  int n = window_length;
+
+  kiss_fft_cpx sout[n];
+  kiss_fftr_cfg kiss_fftr_state;
+  kiss_fft_scalar rin[n + 2];
+
+  for (int i = 0; i < n; ++i) {
+    rin[i] = window_data[i];
+  }
+  kiss_fftr_state = kiss_fftr_alloc(n, 0, 0, 0);
+  kiss_fftr(kiss_fftr_state, rin, sout);
+
+  for (int i = 0; i < n / 2; ++i) {
+    float re = sout[i].r / (n / 2.0);
+    float im = sout[i].i / (n / 2.0);
+    window_data[i] = sqrt(re * re + im * im);
   }
 }
 
@@ -50,43 +126,47 @@ static void handle_dft(struct mg_connection *nc, struct http_message *hm) {
   /* Send headers */
   mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
-  /* Compute the result and send it back as a JSON object */
-  mg_printf_http_chunk(nc, "{ \"song\": [");
-
-  int start = wf->millisecondsToSample(window_offset);
-  int end = wf->millisecondsToSample(window_offset + window_width);
-  end = std::min(end, wf->numSamples() - 1);
-
-  int n = end - start + 1;
-
-  double time[n];
-  double data[n];
-
-  for (int i = start; i <= end; i++) {
-    time[i - start] = wf->sampleToMilliseconds(i);
-    data[i - start] = wf->data()[i];
+  if (usingFile) {
+    cropDataFromFile();
+  } else {
+    cropDataFromSinusoidData();
   }
 
   if (window_function == 1) {
-    hamming(data, n);
+    hamming(window_data, window_length);
   } else if (window_function == 2) {
-    hanning(data, n);
+    hanning(window_data, window_length);
   }
 
-  for (int i = 0; i < n; i++) {
-    mg_printf_http_chunk(nc, "{\"time\": %lf, \"value\": %lf}", time[i],
-                         data[i]);
-    if (i != n - 1) {
+  mg_printf_http_chunk(nc, "{ \"song\": [");
+  for (int i = 0; i < window_length; i++) {
+    mg_printf_http_chunk(nc, "{\"time\": %lf, \"value\": %lf}", window_time[i],
+                         window_data[i]);
+    if (i != window_length - 1) {
       mg_printf_http_chunk(nc, ",");
     }
   }
-  mg_printf_http_chunk(nc, "] }");
+  mg_printf_http_chunk(nc, "], \"dft\": [");
+
+  execDft();
+
+  for (int i = 0; i < window_length / 2; i++) {
+    mg_printf_http_chunk(nc, "{\"frequency\": %d, \"magnitude\": %lf}", i,
+                         window_data[i]);
+    if (i + 1 < window_length / 2) {
+      mg_printf_http_chunk(nc, ",");
+    }
+  }
+  mg_printf_http_chunk(nc, "] } ");
   mg_send_http_chunk(nc, "", 0); /* Send empty chunk, the end of response */
+
+  delete window_data;
+  delete window_time;
 }
 
 static void handle_process_file(struct mg_connection *nc,
                                 struct http_message *hm) {
-
+  usingFile = true;
   /* Send headers */
   mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
@@ -112,7 +192,7 @@ static void handle_process_file(struct mg_connection *nc,
 
 static void handle_process_sine(struct mg_connection *nc,
                                 struct http_message *hm) {
-
+  usingFile = false;
   /* Send headers */
   mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
 
@@ -120,15 +200,15 @@ static void handle_process_sine(struct mg_connection *nc,
   mg_get_http_var(&hm->body, "nSamples", message, sizeof(message));
   int n = strtod(message, NULL);
 
+  sinusoidDataLength = n;
+
   mg_get_http_var(&hm->body, "sines", message, sizeof(message));
   char *sines = message;
 
-  double x1[n];
-  double y1[n];
+  sinusoidData = new double[n];
 
-  for (int i = 0; i < n; i++) {
-    x1[i] = 0;
-    y1[i] = 0;
+  for (int i = 0; i < n + 1; i++) {
+    sinusoidData[i] = 0;
   }
 
   double a, b, c, bb, cc;
@@ -136,15 +216,16 @@ static void handle_process_sine(struct mg_connection *nc,
   while (sscanf(sines, "%lf,%lf,%lf%n", &a, &b, &c, &charsRead) == 3) {
     bb = n / (2.0 * b);
     cc = c == 0 ? 0 : M_PI / c;
-    for (int i = 0; i < n; i++) {
-      x1[i] += a * sin(M_PI * (i / bb) + cc);
+    for (int i = 0; i < n + 1; i++) {
+      sinusoidData[i] += a * sin(M_PI * (i / bb) + cc);
     }
     sines += charsRead;
   }
 
   mg_printf_http_chunk(nc, "{ \"song\": [");
   for (int i = 0; i < n; i++) {
-    mg_printf_http_chunk(nc, "{\"time\": %d, \"value\": %lf}", i, x1[i]);
+    mg_printf_http_chunk(nc, "{\"time\": %d, \"value\": %lf}", i,
+                         sinusoidData[i]);
     if (i + 1 < n) {
       mg_printf_http_chunk(nc, ",");
     }
