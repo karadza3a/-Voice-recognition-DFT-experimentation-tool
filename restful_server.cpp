@@ -5,6 +5,7 @@
 
 #include "mongoose.h"
 #include "WavFile.hpp"
+#include <cmath>
 
 // ------------- Globals ------------------------------
 
@@ -17,6 +18,20 @@ static int window_function = 0; // None, hamm, hann
 static WavFile *wf;
 
 // ------------- Globals end --------------------------
+
+static void hamming(double *data, int n) {
+  for (int i = 0; i < n; i++) {
+    double multiplier = 0.54 - 0.46 * cos(2 * M_PI * i / (n - 1));
+    data[i] = multiplier * data[i];
+  }
+}
+
+static void hanning(double *data, int n) {
+  for (int i = 0; i < n; i++) {
+    double multiplier = 0.5 * (1 - cos(2 * M_PI * i / (n - 1)));
+    data[i] = multiplier * data[i];
+  }
+}
 
 static void handle_dft(struct mg_connection *nc, struct http_message *hm) {
   char n1[100];
@@ -42,10 +57,26 @@ static void handle_dft(struct mg_connection *nc, struct http_message *hm) {
   int end = wf->millisecondsToSample(window_offset + window_width);
   end = std::min(end, wf->numSamples() - 1);
 
+  int n = end - start + 1;
+
+  double time[n];
+  double data[n];
+
   for (int i = start; i <= end; i++) {
-    mg_printf_http_chunk(nc, "{\"time\": %lf, \"value\": %lf}",
-                         wf->sampleToMilliseconds(i), wf->data()[i]);
-    if (i != end) {
+    time[i - start] = wf->sampleToMilliseconds(i);
+    data[i - start] = wf->data()[i];
+  }
+
+  if (window_function == 1) {
+    hamming(data, n);
+  } else if (window_function == 2) {
+    hanning(data, n);
+  }
+
+  for (int i = 0; i < n; i++) {
+    mg_printf_http_chunk(nc, "{\"time\": %lf, \"value\": %lf}", time[i],
+                         data[i]);
+    if (i != n - 1) {
       mg_printf_http_chunk(nc, ",");
     }
   }
@@ -53,7 +84,8 @@ static void handle_dft(struct mg_connection *nc, struct http_message *hm) {
   mg_send_http_chunk(nc, "", 0); /* Send empty chunk, the end of response */
 }
 
-static void handle_process(struct mg_connection *nc, struct http_message *hm) {
+static void handle_process_file(struct mg_connection *nc,
+                                struct http_message *hm) {
 
   /* Send headers */
   mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
@@ -78,6 +110,49 @@ static void handle_process(struct mg_connection *nc, struct http_message *hm) {
   mg_send_http_chunk(nc, "", 0); /* Send empty chunk, the end of response */
 }
 
+static void handle_process_sine(struct mg_connection *nc,
+                                struct http_message *hm) {
+
+  /* Send headers */
+  mg_printf(nc, "%s", "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
+
+  char message[3000];
+  mg_get_http_var(&hm->body, "nSamples", message, sizeof(message));
+  int n = strtod(message, NULL);
+
+  mg_get_http_var(&hm->body, "sines", message, sizeof(message));
+  char *sines = message;
+
+  double x1[n];
+  double y1[n];
+
+  for (int i = 0; i < n; i++) {
+    x1[i] = 0;
+    y1[i] = 0;
+  }
+
+  double a, b, c, bb, cc;
+  int charsRead;
+  while (sscanf(sines, "%lf,%lf,%lf%n", &a, &b, &c, &charsRead) == 3) {
+    bb = n / (2.0 * b);
+    cc = c == 0 ? 0 : M_PI / c;
+    for (int i = 0; i < n; i++) {
+      x1[i] += a * sin(M_PI * (i / bb) + cc);
+    }
+    sines += charsRead;
+  }
+
+  mg_printf_http_chunk(nc, "{ \"song\": [");
+  for (int i = 0; i < n; i++) {
+    mg_printf_http_chunk(nc, "{\"time\": %d, \"value\": %lf}", i, x1[i]);
+    if (i + 1 < n) {
+      mg_printf_http_chunk(nc, ",");
+    }
+  }
+  mg_printf_http_chunk(nc, "] }");
+  mg_send_http_chunk(nc, "", 0); /* Send empty chunk, the end of response */
+}
+
 static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
   struct http_message *hm = (struct http_message *)ev_data;
 
@@ -85,8 +160,10 @@ static void ev_handler(struct mg_connection *nc, int ev, void *ev_data) {
   case MG_EV_HTTP_REQUEST:
     if (mg_vcmp(&hm->uri, "/dft") == 0) {
       handle_dft(nc, hm); /* Handle RESTful call */
-    } else if (mg_vcmp(&hm->uri, "/process") == 0) {
-      handle_process(nc, hm); /* Handle RESTful call */
+    } else if (mg_vcmp(&hm->uri, "/process/file") == 0) {
+      handle_process_file(nc, hm); /* Handle RESTful call */
+    } else if (mg_vcmp(&hm->uri, "/process/sine") == 0) {
+      handle_process_sine(nc, hm); /* Handle RESTful call */
     } else {
       mg_serve_http(nc, hm, s_http_server_opts); /* Serve static content */
     }

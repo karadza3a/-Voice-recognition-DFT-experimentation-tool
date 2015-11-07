@@ -5,46 +5,65 @@
   <title>RESTful API demo</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style type="text/css">
-    * { outline: none; }
-    body {
-      background-color: #789; margin: 0;
-      padding: 0; font: 16px/1.4 Helvetica, Arial, sans-serif;
-      font: 16px/1.4 Helvetica, Arial, sans-serif;
-    }
-    div.content {
-      width: 800px; margin: 2em auto; padding: 20px 50px;
-      background-color: #fff; border-radius: 1em;
-    }
-    label { display: inline-block; min-width: 7em; }
-    input { border: 1px solid #ccc; padding: 0.2em; }
-    a:link, a:visited { color: #69c; text-decoration: none; }
-    @media (max-width: 700px) {
-      body { background-color: #fff; }
-      div.content { width: auto; margin: 0 auto; padding: 1em; }
-    }
-</style>
+  * { outline: none; }
+  body {
+    background-color: #789; margin: 0;
+    padding: 0; font: 16px/1.4 Helvetica, Arial, sans-serif;
+    font: 16px/1.4 Helvetica, Arial, sans-serif;
+  }
+  div.content {
+    width: 800px; margin: 2em auto; padding: 20px 50px;
+    background-color: #fff; border-radius: 1em;
+  }
+  label { display: inline-block; min-width: 7em; }
+  input { border: 1px solid #ccc; padding: 0.2em; }
+  a:link, a:visited { color: #69c; text-decoration: none; }
+  @media (max-width: 700px) {
+    body { background-color: #fff; }
+    div.content { width: auto; margin: 0 auto; padding: 1em; }
+  }
+  </style>
 
-<script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
-<script language="javascript" type="text/javascript">
+  <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+  <script language="javascript" type="text/javascript">
   jQuery(function() {
-
+    $(document).ready(function() {
+      changeSource(); 
+    });
     $(document).on('click', '#process', function() {
-      $.ajax({
-        url: '/process',
-        method: 'POST',
-        dataType: 'json',
-        data: { 
-          increment: $('#increment').val(),
-          fajl: $('#fajl').val()
-        },
-        success: function(json) {
-          //console.log("chart disabled");
-          generateSongChart(json.song);
-        },
-        error: function(json) {
-          console.log("error");
-        },
-      });
+      if ($("#inputType").val() == "File"){
+        $.ajax({
+          url: '/process/file',
+          method: 'POST',
+          dataType: 'json',
+          data: { 
+            increment: $('#increment').val(),
+            fajl: $('#fajl').val()
+          },
+          success: function(json) {
+            generateSongChart(json.song);
+          },
+          error: function(json) {
+            console.log("error");
+          },
+        });
+      }else{
+        $.ajax({
+          url: '/process/sine',
+          method: 'POST',
+          dataType: 'json',
+          data: { 
+            nSamples: $('#nSamples').val(),
+            sines: $('#sines').val(),
+          },
+          success: function(json) {
+            generateSongChart(json.song);
+          },
+          error: function(json) {
+            console.log("error");
+          },
+        });
+      }
     });
 
     $(document).on('click', '#dft', function() {
@@ -58,7 +77,6 @@
           windowOffset: $('#windowOffset').val(),
         },
         success: function(json) {
-          //console.log("chart disabled");
           generateDftChart(json.song);
         },
         error: function(json) {
@@ -75,118 +93,128 @@
 <script src="amcharts/serial.js" type="text/javascript"></script>
 
 <script>
-  var schart;
-  var dchart;
-  function generateSongChart (chartData) {
-    schart = AmCharts.makeChart("songchartdiv", {
-        type: "serial",
-        dataProvider: chartData,
-        categoryField: "time",
-        categoryAxis: {
-            parseDates: false,
-            gridAlpha: 0.15,
-            minorGridEnabled: true,
-            axisColor: "#DADADA",
-        },
-        valueAxes: [{
-            axisAlpha: 0.2,
-            id: "v1"
-        }],
-        graphs: [{
-            title: "red line",
-            id: "g1",
-            valueAxis: "v1",
-            valueField: "value",
-            bullet: "none",
-            bulletBorderColor: "#FFFFFF",
-            bulletBorderAlpha: 1,
-            lineThickness: 2,
-            lineColor: "#b5030d",
-            negativeLineColor: "#0352b5",
-            balloonText: "[[category]]<br><b><span style='font-size:14px;'>value: [[value]]</span></b>"
-        }],
-        chartCursor: {
-            fullWidth:true,
-            cursorAlpha:0.1
-        },
-        chartScrollbar: {
-            scrollbarHeight: 40,
-            color: "#FFFFFF",
-            autoGridCount: true,
-            graph: "g1"
-        },
+var schart;
+var dchart;
+var aa,bb,cc;
+function generateSongChart (chartData) {
+  schart = AmCharts.makeChart("songchartdiv", {
+    type: "serial",
+    dataProvider: chartData,
+    categoryField: "time",
+    categoryAxis: {
+      parseDates: false,
+      gridAlpha: 0.15,
+      minorGridEnabled: true,
+      axisColor: "#DADADA",
+    },
+    valueAxes: [{
+      axisAlpha: 0.2,
+      id: "v1"
+    }],
+    graphs: [{
+      title: "red line",
+      id: "g1",
+      valueAxis: "v1",
+      valueField: "value",
+      bullet: "none",
+      bulletBorderColor: "#FFFFFF",
+      bulletBorderAlpha: 1,
+      lineThickness: 2,
+      lineColor: "#b5030d",
+      negativeLineColor: "#0352b5",
+      balloonText: "[[category]]<br><b><span style='font-size:14px;'>value: [[value]]</span></b>"
+    }],
+    chartCursor: {
+      fullWidth:true,
+      cursorAlpha:0.1
+    },
+    chartScrollbar: {
+      scrollbarHeight: 40,
+      color: "#FFFFFF",
+      autoGridCount: true,
+      graph: "g1"
+    },
 
-        mouseWheelZoomEnabled:true
-    });
-    schart.zoomToIndexes(0, chartData.length - 1);
-  }
-  function generateDftChart (chartData) {
-    dchart = AmCharts.makeChart("dftchartdiv", {
-        type: "serial",
-        dataProvider: chartData,
-        categoryField: "time",
-        categoryAxis: {
-            parseDates: false,
-            gridAlpha: 0.15,
-            minorGridEnabled: true,
-            axisColor: "#DADADA",
-        },
-        valueAxes: [{
-            axisAlpha: 0.2,
-            id: "v1"
-        }],
-        graphs: [{
-            title: "red line",
-            id: "g1",
-            valueAxis: "v1",
-            valueField: "value",
-            bullet: "none",
-            bulletBorderColor: "#FFFFFF",
-            bulletBorderAlpha: 1,
-            lineThickness: 2,
-            lineColor: "#b5030d",
-            negativeLineColor: "#0352b5",
-            balloonText: "[[category]]<br><b><span style='font-size:14px;'>value: [[value]]</span></b>"
-        }],
-        chartCursor: {
-            fullWidth:true,
-            cursorAlpha:0.1
-        },
-        chartScrollbar: {
-            scrollbarHeight: 40,
-            color: "#FFFFFF",
-            autoGridCount: true,
-            graph: "g1"
-        },
+    mouseWheelZoomEnabled:true
+  });
+  schart.zoomToIndexes(0, chartData.length - 1);
+}
+function generateDftChart (chartData) {
+  dchart = AmCharts.makeChart("dftchartdiv", {
+    type: "serial",
+    dataProvider: chartData,
+    categoryField: "time",
+    categoryAxis: {
+      parseDates: false,
+      gridAlpha: 0.15,
+      minorGridEnabled: true,
+      axisColor: "#DADADA",
+    },
+    valueAxes: [{
+      axisAlpha: 0.2,
+      id: "v1"
+    }],
+    graphs: [{
+      title: "red line",
+      id: "g1",
+      valueAxis: "v1",
+      valueField: "value",
+      bullet: "none",
+      bulletBorderColor: "#FFFFFF",
+      bulletBorderAlpha: 1,
+      lineThickness: 2,
+      lineColor: "#b5030d",
+      negativeLineColor: "#0352b5",
+      balloonText: "[[category]]<br><b><span style='font-size:14px;'>value: [[value]]</span></b>"
+    }],
+    chartCursor: {
+      fullWidth:true,
+      cursorAlpha:0.1
+    },
+    chartScrollbar: {
+      scrollbarHeight: 40,
+      color: "#FFFFFF",
+      autoGridCount: true,
+      graph: "g1"
+    },
 
-        mouseWheelZoomEnabled:true
-    });
-    dchart.zoomToIndexes(0, chartData.length - 1);
-  }
-  
-  // changes cursor mode from pan to select
-  function setSongPanSelect() {
-      var chartCursor = schart.chartCursor;
+    mouseWheelZoomEnabled:true
+  });
+  dchart.zoomToIndexes(0, chartData.length - 1);
+}
 
-      if (document.getElementById("srb1").checked) {
-          chartCursor.pan = false;
-          chartCursor.zoomable = true;
-      } else {
-          chartCursor.pan = true;
-      }
-      schart.validateNow();
-  }
-  function setDftPanSelect() {
-      var chartCursor = dchart.chartCursor;
+// changes cursor mode from pan to select
+function setSongPanSelect() {
+  var chartCursor = schart.chartCursor;
 
-      if (document.getElementById("drb1").checked) {
-          chartCursor.pan = false;
-          chartCursor.zoomable = true;
-      } else {
-          chartCursor.pan = true;
-      }
-      dchart.validateNow();
+  if (document.getElementById("srb1").checked) {
+    chartCursor.pan = false;
+    chartCursor.zoomable = true;
+  } else {
+    chartCursor.pan = true;
   }
+  schart.validateNow();
+}
+function setDftPanSelect() {
+  var chartCursor = dchart.chartCursor;
+
+  if (document.getElementById("drb1").checked) {
+    chartCursor.pan = false;
+    chartCursor.zoomable = true;
+  } else {
+    chartCursor.pan = true;
+  }
+  dchart.validateNow();
+}
+function changeSource () {
+  if ($("#inputType").val() == "File") {
+    $("#sineSettings").hide();
+    $("#fileSettings").show();
+  }else{
+    $("#sineSettings").show();
+    $("#fileSettings").hide();
+  }
+}
 </script>
 
 <!-- end chart shit -->
@@ -201,40 +229,61 @@
       Browser sends two numbers to <tt>/api/v1/sum</tt> URI.
     </p>
 
+    <label>Input type:</label> 
+    <select onchange="changeSource()" id="inputType">
+      <option>Sinusoids</option>
+      <option>File</option>
+    </select>
+    <br>
+    <br>
+    <div id="fileSettings">
+      <div>
+        <label>Filename:</label> <input type="file" id="fajl" />
+      </div>
+      <div>
+        <label>Increment:</label> <input type="number" id="increment" value=500 />
+      </div>
+    </div>
+    <div id="sineSettings">
+      <label>Number of samples:</label> <input type="number" id="nSamples" value=256 />
+      <p>amplitude,frequency,offset<p>
+      <textarea id="sines" style="width:500px; height:100px"></textarea>
+    </div>
     <div>
-      <label>Filename:</label> <input type="file" id="fajl" />
-    </div><div>
-      <label>Increment:</label> <input type="number" id="increment" value=500 />
-    </div><div>
       <button type="button" id="process">Process</button>
     </div>
 
     <div id="songchartdiv" style="width: 100%; height: 400px;"></div>
     <div style="margin-left:35px;">
-        <input type="radio" checked="true" name="group" id="srb1" onclick="setSongPanSelect()">Select
-        <input type="radio" name="group" id="srb2" onclick="setSongPanSelect()">Pan
+      <input type="radio" checked="true" name="group" id="srb1" onclick="setSongPanSelect()">Select
+      <input type="radio" name="group" id="srb2" onclick="setSongPanSelect()">Pan
     </div>
 
     <div>
-      <label>Window width:</label> <input type="text" id="windowWidth" value="20" /> ms
-    </div><div>
-      <label>Window offset:</label> <input type="text" id="windowOffset" value="500" /> ms
-    </div><div>
+      <label>Window width:</label> 
+      <input type="text" id="windowWidth" value="20" /> ms
+    </div>
+    <div>
+      <label>Window offset:</label> 
+      <input type="text" id="windowOffset" value="500" /> ms
+    </div>
+    <div>
       <label>Window function:</label>
       <select id="windowFunction">
         <option>None</option>
         <option>Hamming</option>
         <option>Hanning</option>
       </select>
-    </div><div>
+    </div>
+    <div>
       <button type="button" id="dft">DFT it!</button>
     </div>
 
     <div id="dftchartdiv" style="width: 100%; height: 400px;"></div>
     <div style="margin-left:35px;">
-        <input type="radio" checked="true" name="group" id="drb1" onclick="setDftPanSelect()">Select
-        <input type="radio" name="group" id="drb2" onclick="setDftPanSelect()">Pan
+      <input type="radio" checked="true" name="group" id="drb1" onclick="setDftPanSelect()">Select
+      <input type="radio" name="group" id="drb2" onclick="setDftPanSelect()">Pan
     </div>
-
+  </div>
 </body>
 </html>
