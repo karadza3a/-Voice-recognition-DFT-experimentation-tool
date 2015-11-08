@@ -3,293 +3,126 @@
 <head>
   <meta charset="utf-8" />
   <title>RESTful API demo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link type="text/css" rel="stylesheet" href="materialize/css/materialize.min.css"/>
   <style type="text/css">
-  * { outline: none; }
+
   body {
-    background-color: #789; margin: 0;
+    background-color: #789; 
+    margin: 0;
     padding: 0; font: 16px/1.4 Helvetica, Arial, sans-serif;
     font: 16px/1.4 Helvetica, Arial, sans-serif;
   }
-  div.content {
-    width: 800px; margin: 2em auto; padding: 20px 50px;
-    background-color: #fff; border-radius: 1em;
+  .sidebar {
+    width: 20%; 
+    position: fixed;
+    margin: 0;
+    padding: 20px 20px;
+    background-color: #fefefe; 
+    
   }
-  label { display: inline-block; min-width: 7em; }
-  input { border: 1px solid #ccc; padding: 0.2em; }
-  a:link, a:visited { color: #69c; text-decoration: none; }
-  @media (max-width: 700px) {
-    body { background-color: #fff; }
-    div.content { width: auto; margin: 0 auto; padding: 1em; }
+  .content {
+    width: 60%; 
+    margin: 0 0 0 25%; 
+    padding: 20px 50px;
+    background-color: #fff; 
+    border-radius: 1em;
   }
+
   </style>
 
   <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
-  <script language="javascript" type="text/javascript">
-  jQuery(function() {
-    $(document).ready(function() {
-      changeSource(); 
-    });
-    $(document).on('click', '#process', function() {
-      if ($("#inputType").val() == "File"){
-        $.ajax({
-          url: '/process/file',
-          method: 'POST',
-          dataType: 'json',
-          data: { 
-            increment: $('#increment').val(),
-            filename: $('#fajl').val()
-          },
-          success: function(json) {
-            generateSongChart(json.song);
-          },
-          error: function(json) {
-            console.log("error");
-          },
-        });
-      }else{
-        $.ajax({
-          url: '/process/sine',
-          method: 'POST',
-          dataType: 'json',
-          data: { 
-            nSamples: $('#nSamples').val(),
-            sines: $('#sines').val(),
-          },
-          success: function(json) {
-            generateSongChart(json.song);
-          },
-          error: function(json) {
-            console.log("error");
-          },
-        });
-      }
-    });
+  <script type="text/javascript" src="materialize/js/materialize.min.js"></script>
+  <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    $(document).on('click', '#dft', function() {
-      $.ajax({
-        url: '/dft',
-        method: 'POST',
-        dataType: 'json',
-        data: { 
-          windowWidth: $('#windowWidth').val(),
-          windowFunction: $('#windowFunction').val(),
-          windowOffset: $('#windowOffset').val(),
-          average: $('#average').is(':checked')?"yes":"no",
-        },
-        success: function(json) {
-          generateDftChart(json.song);
-          generateSpectre(json.dft);
-        },
-        error: function(json) {
-          console.log("error");
-        },
-      });
-    });
-
-  });
-</script>
-
-<!-- chart shit -->
-<script src="amcharts/amcharts.js" type="text/javascript"></script>
-<script src="amcharts/serial.js" type="text/javascript"></script>
-
-<script>
-var schart;
-var dchart;
-var specchart;
-
-function generateSongChart (chartData) {
-  schart = AmCharts.makeChart("songchartdiv", {
-    type: "serial",
-    dataProvider: chartData,
-    categoryField: "time",
-    categoryAxis: {
-      parseDates: false,
-      gridAlpha: 0.15,
-      minorGridEnabled: true,
-      axisColor: "#DADADA",
-    },
-    valueAxes: [{
-      axisAlpha: 0.2,
-      id: "v1"
-    }],
-    graphs: [{
-      title: "red line",
-      id: "g1",
-      valueAxis: "v1",
-      valueField: "value",
-      bullet: "none",
-      bulletBorderColor: "#FFFFFF",
-      bulletBorderAlpha: 1,
-      lineThickness: 2,
-      lineColor: "#b5030d",
-      negativeLineColor: "#0352b5",
-      balloonText: "[[category]]<br><b><span style='font-size:14px;'>value: [[value]]</span></b>"
-    }],
-    chartCursor: {
-      fullWidth:true,
-      cursorAlpha:0.1
-    },
-    chartScrollbar: {
-      scrollbarHeight: 40,
-      color: "#FFFFFF",
-      autoGridCount: true,
-      graph: "g1"
-    },
-
-    mouseWheelZoomEnabled:true
-  });
-  schart.zoomToIndexes(0, chartData.length - 1);
-}
-function generateDftChart (chartData) {
-  dchart = AmCharts.makeChart("dftchartdiv", {
-    type: "serial",
-    dataProvider: chartData,
-    categoryField: "time",
-    categoryAxis: {
-      parseDates: false,
-      gridAlpha: 0.15,
-      minorGridEnabled: true,
-      axisColor: "#DADADA",
-    },
-    valueAxes: [{
-      axisAlpha: 0.2,
-      id: "v1"
-    }],
-    graphs: [{
-      title: "red line",
-      id: "g1",
-      valueAxis: "v1",
-      valueField: "value",
-      bullet: "none",
-      bulletBorderColor: "#FFFFFF",
-      bulletBorderAlpha: 1,
-      lineThickness: 2,
-      lineColor: "#b5030d",
-      negativeLineColor: "#0352b5",
-      balloonText: "[[category]]<br><b><span style='font-size:14px;'>value: [[value]]</span></b>"
-    }],
-    chartCursor: {
-      fullWidth:true,
-      cursorAlpha:0.1
-    },
-    chartScrollbar: {
-      scrollbarHeight: 40,
-      color: "#FFFFFF",
-      autoGridCount: true,
-      graph: "g1"
-    },
-
-    mouseWheelZoomEnabled:true
-  });
-  dchart.zoomToIndexes(0, chartData.length - 1);
-}
-
-function generateSpectre (chartData) {
-
-  specchart = new AmCharts.AmSerialChart();
-  specchart.dataProvider = chartData;
-  specchart.categoryField = "frequency";
-
-  var categoryAxis = specchart.categoryAxis;
-  categoryAxis.labelRotation = 90;
-  categoryAxis.gridPosition = "start";
-
-  var graph = new AmCharts.AmGraph();
-  graph.valueField = "magnitude";
-  graph.balloonText = "[[frequency]]: <b>[[magnitude]]</b>";
-  graph.type = "column";
-  graph.lineAlpha = 0;
-  graph.fillAlphas = 0.8;
-  specchart.addGraph(graph);
-
-  var chartCursor = new AmCharts.ChartCursor();
-  chartCursor.cursorAlpha = 0.5;
-  chartCursor.zoomable = true;
-  chartCursor.categoryBalloonEnabled = false;
-  specchart.addChartCursor(chartCursor);
-
-  specchart.creditsPosition = "top-left";
-
-  specchart.write("spectrediv");
-}
-
-function changeSource () {
-  if ($("#inputType").val() == "File") {
-    $("#sineSettings").hide();
-    $("#fileSettings").show();
-  }else{
-    $("#sineSettings").show();
-    $("#fileSettings").hide();
-  }
-}
-</script>
-
-<!-- end chart shit -->
+  <script src="networking.js" type="text/javascript"></script>
+  <script src="amcharts/amcharts.js" type="text/javascript"></script>
+  <script src="amcharts/serial.js" type="text/javascript"></script>
+  <script src="charting.js" type="text/javascript"></script>
 
 </head>
 <body>
+  <div class="sidebar" style="height: 100%; overflow: scroll">
+
+    <div id="inputSettings" class="row" style="margin-bottom: 0px">
+      <div class="input-field col s12">
+        <select onchange="changeSource()" id="inputType">
+          <option selected>Sinusoids</option>
+          <option>File</option>
+        </select>
+        <label>Input type</label>
+      </div>
+    </div>
+
+    <div id="fileSettings" class="row" style="margin-bottom: 0">
+      <div class="input-field col s12">
+        <label>File path:</label> 
+        <input type="text" id="fajl" value="/Users/karadza3a/Downloads/primer.wav" style="width:100%"/>
+      </div>
+      <div class="input-field col s12">
+        <input id="increment" type="number" value=50>
+        <label for="increment">Display increment</label>
+      </div>
+    </div>
+
+    <div id="sineSettings" class="row" style="margin-bottom: 0">
+      <div class="input-field col s12">
+        <input id="nSamples" type="number" value=512 >
+        <label for="nSamples">Number of samples</label>
+      </div>
+      <div class="input-field col s12">
+        <textarea id="sines" class="materialize-textarea" placeholder="amplitude,frequency,offset"></textarea>
+        <label for="sines">Sinusoids</label>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top: 0px;">
+      <div class="input-field col s12" style="margin-top: 0px;">
+        <button class="btn waves-effect waves-light" type="submit" name="action" id="process">Process
+          <i class="material-icons right">insert_chart</i>
+        </button>
+      </div>
+    </div>
+    
+    <div class="row" style="margin-top: 40px; margin-bottom: 40px;">
+      <div class="input-field col s12">
+        <select id="windowFunction">
+          <option selected>None</option>
+          <option>Hamming</option>
+          <option>Hanning</option>
+        </select>
+        <label>Window function:</label>
+      </div>   
+
+      <div class="input-field col s12">
+        <input id="nSamples" type="number" value=512 >
+        <label for="nSamples">Number of samples</label>
+      </div>
+
+      <div class="input-field col s12">
+        <label for="windowWidth">Window width:</label> 
+        <input type="text" id="windowWidth" value="20" />
+      </div>
+      <p class="col s12">
+        <input type="checkbox" id="average" class="filled-in"/>
+        <label for="average">Average across all</label>
+      </p>
+      <div class="input-field col s12">
+        <label>Window offset:</label> 
+        <input type="text" id="windowOffset" value="500" />
+      </div>
+      <div class="input-field col s12" style="margin-top: 0px;">
+        <button class="btn waves-effect waves-light" type="submit" name="action" id="dft">DFT it!
+          <i class="material-icons right">insert_chart</i>
+        </button>
+      </div>
+    </div>
+
+  </div>
   <div class="content">
-    <h1>RESTful API demo.</h1>
-
-    <p>
-      This page dem  on   strates how Mongoose could 
-      Browser sends two numbers to <tt>/api/v1/sum</tt> URI.
-    </p>
-
-    <label>Input type:</label> 
-    <select onchange="changeSource()" id="inputType">
-      <option>Sinusoids</option>
-      <option>File</option>
-    </select>
-    <br>
-    <br>
-    <div id="fileSettings">
-      <div>
-        <label>File:</label> <input type="text" id="fajl" value="/Users/karadza3a/Downloads/primer.wav"/>
-      </div>
-      <div>
-        <label>Display increment:</label> <input type="number" id="increment" value=50 />
-      </div>
-    </div>
-    <div id="sineSettings">
-      <label>Number of samples:</label> <input type="number" id="nSamples" value=256 />
-      <p>amplitude,frequency,offset<p>
-      <textarea id="sines" style="width:500px; height:100px"></textarea>
-    </div>
-    <div>
-      <button type="button" id="process">Process</button>
-    </div>
+    <h1>JSonogram++</h1>
 
     <div id="songchartdiv" style="width: 100%; height: 400px;"></div>
-
-    <div>
-      <label>Average across all:</label> 
-      <input type="checkbox" id="average"/>
-    </div>
-    <div>
-      <label>Window width:</label> 
-      <input type="text" id="windowWidth" value="20" /> ms
-    </div>
-    <div>
-      <label>Window offset:</label> 
-      <input type="text" id="windowOffset" value="500" /> ms
-    </div>
-    <div>
-      <label>Window function:</label>
-      <select id="windowFunction">
-        <option>None</option>
-        <option>Hamming</option>
-        <option>Hanning</option>
-      </select>
-    </div>
-    <div>
-      <button type="button" id="dft">DFT it!</button>
-    </div>
-
     <div id="dftchartdiv" style="width: 100%; height: 400px;"></div>
-
     <div id="spectrediv" style="width: 100%; height: 400px;"></div>
   </div>
 </body>
