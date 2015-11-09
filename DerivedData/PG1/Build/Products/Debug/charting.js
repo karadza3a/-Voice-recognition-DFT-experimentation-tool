@@ -62,12 +62,13 @@ function generateSongChart (chartData) {
       bulletBorderColor: "#FFFFFF",
       bulletBorderAlpha: 1,
       lineThickness: 2,
-      lineColor: "#b5030d",
-      negativeLineColor: "#0352b5",
+      lineColor: "#009688",
+      negativeLineColor: "#4527a0",
       balloonText: "[[category]]<br><b><span style='font-size:14px;'>value: [[value]]</span></b>"
     }],
     chartCursor: {
       fullWidth:true,
+      cursorColor: "#009688",
       cursorAlpha:0.1
     },
     chartScrollbar: {
@@ -105,12 +106,13 @@ function generateDftChart (chartData) {
       bulletBorderColor: "#FFFFFF",
       bulletBorderAlpha: 1,
       lineThickness: 2,
-      lineColor: "#b5030d",
-      negativeLineColor: "#0352b5",
+      lineColor: "#009688",
+      negativeLineColor: "#4527a0",
       balloonText: "[[category]]<br><b><span style='font-size:14px;'>value: [[value]]</span></b>"
     }],
     chartCursor: {
       fullWidth:true,
+      cursorColor: "#009688",
       cursorAlpha:0.1
     },
     chartScrollbar: {
@@ -127,53 +129,46 @@ function generateDftChart (chartData) {
 
 AmCharts.checkEmptyData = function (chart) {
   if ( 0 == chart.dataProvider.length ) {
-        // set min/max on the value axis
-        chart.valueAxes[0].minimum = 0;
-        chart.valueAxes[0].maximum = 100;
-        
-        // add dummy data point
-        var dataPoint = {
-          dummyValue: 0
-        };
-        dataPoint[chart.categoryField] = '';
-        chart.dataProvider = [dataPoint];
-        
-        // add label
-        chart.addLabel(0, '50%', 'The chart contains no data', 'center');
-        
-        // set opacity of the chart div
-        chart.chartDiv.style.opacity = 0.5;
-        
-        // redraw it
-        chart.validateNow();
-      }
-    }
+    chart.valueAxes[0].minimum = 0;
+    chart.valueAxes[0].maximum = 100;
+    var dataPoint = {
+      dummyValue: 0
+    };
+    dataPoint[chart.categoryField] = '';
+    chart.dataProvider = [dataPoint];
+    chart.addLabel(0, '50%', 'The chart contains no data', 'center');
+    chart.chartDiv.style.opacity = 0.5;
+    chart.validateNow();
+  }
+}
 
-    function generateSpectre (chartData) {
+function generateSpectre (chartData) {
 
-      specchart = new AmCharts.AmSerialChart();
-      specchart.dataProvider = chartData;
-      specchart.categoryField = "frequency";
+  specchart = new AmCharts.AmSerialChart();
+  specchart.dataProvider = chartData;
+  specchart.categoryField = "frequency";
+  specchart.colors = ["#4527a0"];
 
-      var categoryAxis = specchart.categoryAxis;
-      categoryAxis.labelRotation = 90;
-      categoryAxis.gridPosition = "start";
+  var categoryAxis = specchart.categoryAxis;
+  categoryAxis.labelRotation = 90;
+  categoryAxis.gridPosition = "start";
 
-      var graph = new AmCharts.AmGraph();
-      graph.valueField = "magnitude";
-      graph.balloonText = "[[frequency]]: <b>[[magnitude]]</b>";
-      graph.type = "column";
-      graph.lineAlpha = 0;
-      graph.fillAlphas = 0.8;
-      specchart.addGraph(graph);
+  var graph = new AmCharts.AmGraph();
+  graph.valueField = "magnitude";
+  graph.balloonText = "[[frequency]]: <b>[[magnitude]]</b>";
+  graph.type = "column";
+  graph.lineAlpha = 0;
+  graph.fillAlphas = 0.8;
+  specchart.addGraph(graph);
 
-      var chartCursor = new AmCharts.ChartCursor();
-      chartCursor.cursorAlpha = 0.5;
-      chartCursor.zoomable = true;
-      chartCursor.categoryBalloonEnabled = false;
-      specchart.addChartCursor(chartCursor);
+  var chartCursor = new AmCharts.ChartCursor();
+  chartCursor.cursorAlpha = 0.5;
+  chartCursor.zoomable = true;
+  chartCursor.categoryBalloonEnabled = false;
+  chartCursor.cursorColor = "#009688";
+  specchart.addChartCursor(chartCursor);
 
-      specchart.creditsPosition = "top-left";
+  specchart.creditsPosition = "top-left";
 
-      specchart.write("spectrediv");
-    }
+  specchart.write("spectrediv");
+}
