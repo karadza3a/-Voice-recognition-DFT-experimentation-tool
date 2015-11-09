@@ -27,7 +27,8 @@ jQuery(function() {
           sines: $('#sines').val(),
         },
         success: function(json) {
-          generateSongChart(json.song);
+          generateSongChart(json.song); 
+          $("#dftSettings").show();
         },
         error: function(json) {
           console.log("error");

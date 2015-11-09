@@ -1,0 +1,9 @@
+Tested on Linux in Google Chrome only
+
+Compile with:
+g++ WavFile.cpp kiss_fft.c kiss_fftr.c mongoose.c restful_server.cpp -o View/dftsrv -I.
+
+Start server with:
+./View/dftsrv
+
+Open http://localhost:8000/ in browser

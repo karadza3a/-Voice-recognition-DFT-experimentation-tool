@@ -40,6 +40,10 @@ function changeSource () {
 
 function generateSongChart (chartData) {
   schart = AmCharts.makeChart("songchartdiv", {
+    titles : [{
+      "text": "Input signal chart",
+      "size": 15
+    }],
     type: "serial",
     dataProvider: chartData,
     categoryField: "time",
@@ -84,6 +88,10 @@ function generateSongChart (chartData) {
 }
 function generateDftChart (chartData) {
   dchart = AmCharts.makeChart("dftchartdiv", {
+    titles : [{
+      "text": "Signal with window function applied",
+      "size": 15
+    }],
     type: "serial",
     dataProvider: chartData,
     categoryField: "time",
@@ -169,6 +177,9 @@ function generateSpectre (chartData) {
   specchart.addChartCursor(chartCursor);
 
   specchart.creditsPosition = "top-left";
-
+  specchart.titles = [{
+      "text": "Sonogram",
+      "size": 15
+    }];
   specchart.write("spectrediv");
 }
