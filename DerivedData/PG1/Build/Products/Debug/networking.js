@@ -1,7 +1,4 @@
 jQuery(function() {
-  $(document).ready(function() {
-    changeSource(); 
-  });
   $(document).on('click', '#process', function() {
     if ($("#inputType").val() == "File"){
       $.ajax({
@@ -13,7 +10,8 @@ jQuery(function() {
           filename: $('#fajl').val()
         },
         success: function(json) {
-          generateSongChart(json.song);
+          generateSongChart(json.song);    
+          $("#dftSettings").show();
         },
         error: function(json) {
           console.log("error");
@@ -58,21 +56,5 @@ jQuery(function() {
       },
     });
   });
-  $(document).ready(function() {
-    $('select').material_select();
-    $('#windowFunction').material_select();
-  });
-  // $(document).on('change', '#average', function() {
-  //   boolean b = $('#average').is(':checked');
-  //   if(b){
-      
-  //   }
-  // });
-  // $(document).on('change', '#inputType', function() {
-  //   boolean b = $('#average').is(':checked');
-  //   if(b){
-      
-  //   }
-  // });
 
 });

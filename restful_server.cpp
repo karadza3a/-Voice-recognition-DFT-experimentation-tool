@@ -273,13 +273,12 @@ static void handle_process_sine(struct mg_connection *nc,
     sinusoidData[i] = 0;
   }
 
-  double a, b, c, bb, cc;
+  double a, b, c, bb;
   int charsRead;
   while (sscanf(sines, "%lf,%lf,%lf%n", &a, &b, &c, &charsRead) == 3) {
     bb = n / (2.0 * b);
-    cc = c == 0 ? 0 : M_PI / c;
     for (int i = 0; i < n + 1; i++) {
-      sinusoidData[i] += a * sin(M_PI * (i / bb) + cc);
+      sinusoidData[i] += a * sin(M_PI * (i / bb) + M_PI * c);
     }
     sines += charsRead;
   }

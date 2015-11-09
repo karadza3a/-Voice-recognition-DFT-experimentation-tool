@@ -76,14 +76,19 @@
     </div>
 
     <div class="row" style="margin-top: 0px;">
-      <div class="input-field col s12" style="margin-top: 0px;">
-        <button class="btn waves-effect waves-light" type="submit" name="action" id="process">Process
+      <div class="input-field col s10" style="margin-top: 0px;margin-right: 0px;padding-right: 0px;">
+        <button class="btn waves-effect waves-light" type="submit" name="action" id="process" style="margin-right: 0px;">Process
           <i class="material-icons right">insert_chart</i>
         </button>
       </div>
+      <div class="input-field col s1" style="margin-top: 0px; padding-left: 0px;">
+        <a class="btn modal-trigger" href="#modal1" style="margin-top: 0px; padding: 0px 5px 0 5px;">
+          <i class="material-icons">live_help</i>
+        </a>
+      </div>
     </div>
-    
-    <div class="row" style="margin-top: 40px; margin-bottom: 40px;">
+
+    <div class="row" style="margin-top: 40px; margin-bottom: 40px;" id="dftSettings">
       <div class="input-field col s12">
         <select id="windowFunction">
           <option selected>None</option>
@@ -94,25 +99,20 @@
       </div>   
 
       <div class="input-field col s12">
-        <input id="nSamples" type="number" value=512 >
-        <label for="nSamples">Number of samples</label>
-      </div>
-
-      <div class="input-field col s12">
         <label for="windowWidth">Window width:</label> 
         <input type="text" id="windowWidth" value="20" />
       </div>
       <p class="col s12">
         <input type="checkbox" id="average" class="filled-in"/>
-        <label for="average">Average across all</label>
+        <label for="average">Average across windows</label>
       </p>
       <div class="input-field col s12">
-        <label>Window offset:</label> 
-        <input type="text" id="windowOffset" value="500" />
+        <label for="windowOffset">Window offset:</label> 
+        <input type="text" id="windowOffset" value="0" />
       </div>
       <div class="input-field col s12" style="margin-top: 0px;">
         <button class="btn waves-effect waves-light" type="submit" name="action" id="dft">DFT it!
-          <i class="material-icons right">insert_chart</i>
+          <i class="material-icons right">graphic_eq</i>
         </button>
       </div>
     </div>
@@ -124,6 +124,29 @@
     <div id="songchartdiv" style="width: 100%; height: 400px;"></div>
     <div id="dftchartdiv" style="width: 100%; height: 400px;"></div>
     <div id="spectrediv" style="width: 100%; height: 400px;"></div>
+    
+    <!-- Modal Structure -->
+    <div id="modal1" class="modal">
+      <div class="modal-content">
+        <h5>Disclaimer</h5>
+        <p>
+          Tested only in Google Chrome on Linux
+        </p>
+        <h5>Sinusoids</h5>
+        <p>
+          <img src="sineq.gif"><br>
+          n - number of samples 
+        </p>
+        <h5>File</h5>
+        <p>
+          Display increment - dictates only how granular the data will be displayed in the waveform charts, doesn't affect DFT
+        </p>
+      </div>
+      <div class="modal-footer">
+        <a href="#!" class=" modal-action modal-close waves-effect waves-green btn-flat">Cool</a>
+      </div>
+    </div>
+
   </div>
 </body>
 </html>
